@@ -136,6 +136,7 @@ int main(int argc, char **argv){
         printf("Delimiter positions:\n");
     #endif
     int* del_pos = (int*) malloc(freq[(int)(*delimiter)]*sizeof(int));
+
     int del_index = 0;
     for (int i = 0; i < text_len; i++){
         if (text_str[i] == *delimiter){
@@ -150,12 +151,13 @@ int main(int argc, char **argv){
 
     /* initialize suffix array */
     #ifdef DEBUG
-        printf("\ninitializing suffix array:\n");
+        printf("\n\nInitializing suffix array:\n");
     #endif
 
     FILE *output_file = fopen(output_path, "wb");
     int index;
     int cur_row=0;
+    int* aux_row_pos = (int*) malloc(freq[(int)(*delimiter)]*sizeof(int));
 
     for (int i = 0; i < ALPHABETS_NUM; i++){    
         if (freq[i] > 0){
@@ -192,7 +194,10 @@ int main(int argc, char **argv){
                 if (bwt_char == *delimiter){
                     for (int t=0; t<del_index; t++){
                         if (del_pos[t]==bwt_pos){
-                            printf("Del (%d) is at row %d for pos %d\n",t+1, cur_row, del_pos[t]);
+                            #ifdef DEBUG
+                                printf("Del (%d) is at row %d for pos %d in original text\n",t, cur_row, del_pos[t]);
+                            #endif
+                            aux_row_pos[t]=cur_row;
                         }
                     }
                 }
@@ -207,8 +212,17 @@ int main(int argc, char **argv){
         }
         
     }
+    #ifdef DEBUG
+    printf("\nDeliminator positions in BWT:\n");
+    for (int i=0; i<freq[(int)(*delimiter)]; i++){
+        printf("%d ",aux_row_pos[i]);
+    }
+    printf("\n");
+    #endif
 
-
+    FILE* aux_file = fopen("./bwt_pos.aux","wb");
+    fwrite(&aux_row_pos, sizeof(int), freq[(int)(*delimiter)], aux_file);
+    fclose(aux_file);
     /* terminate and free memory */
     fclose (output_file);
     free(text_str);
