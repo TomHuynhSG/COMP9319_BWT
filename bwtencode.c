@@ -14,7 +14,6 @@ Example command:
 /* libraries */
 #include <stdio.h>
 #include <stdlib.h>
-#include <assert.h>
 #include <string.h>
 
 /* global variables */
@@ -24,7 +23,6 @@ char* delimiter;
 /* constants */
 /*#define DEBUG*/
 #define ALPHABETS_NUM 256
-#define BUFFER_MAX 256
 #define ERROR -1
 #define SUCCESS 0
 
