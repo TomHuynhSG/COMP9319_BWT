@@ -22,7 +22,7 @@ char* text_str;
 char* delimiter;
 
 /* constants */
-#define DEBUG
+/*#define DEBUG*/
 #define ALPHABETS_NUM 256
 #define BUFFER_MAX 256
 #define ERROR -1
@@ -45,7 +45,8 @@ char* read_file(char *input_path){
 short get_string_frequency(char* string, int string_len, int freq[]){
     int unique_chars = 0;
     int c;
-    for (int i = 0; i < string_len; i++){
+    int i;
+    for (i = 0; i < string_len; i++){
         c = string[i];
         if (freq[c] == 0){
             ++unique_chars;
@@ -122,10 +123,11 @@ int main(int argc, char **argv){
     #endif
     
     unique_chars = get_string_frequency(text_str, text_len, freq);
+    int i;
     #ifdef DEBUG
         printf("Unique chars: %d\n", unique_chars);
         printf("Frequecy:\n");
-        for (int i = 0; i < ALPHABETS_NUM; i++){
+        for (i = 0; i < ALPHABETS_NUM; i++){
             if (freq[i] > 0){
                 printf("%c: %d\n", (char)i, freq[i]);
             }
@@ -138,13 +140,14 @@ int main(int argc, char **argv){
     int* del_pos = (int*) malloc(freq[(int)(*delimiter)]*sizeof(int));
 
     int del_index = 0;
-    for (int i = 0; i < text_len; i++){
+
+    for (i = 0; i < text_len; i++){
         if (text_str[i] == *delimiter){
             del_pos[del_index++]=i;
         };
     }
     #ifdef DEBUG
-    for (int i = 0; i < del_index; i++){
+    for (i = 0; i < del_index; i++){
         printf("%d ", del_pos[i]);
     }
     #endif
@@ -158,13 +161,15 @@ int main(int argc, char **argv){
     int index;
     int cur_row=0;
     int* aux_row_pos = (int*) malloc(freq[(int)(*delimiter)]*sizeof(int));
-
-    for (int i = 0; i < ALPHABETS_NUM; i++){    
+    int j;
+    int k;
+    int t;
+    for (i = 0; i < ALPHABETS_NUM; i++){    
         if (freq[i] > 0){
         
             suffix_indexes = (int*) malloc(freq[i]*sizeof(int));
             index = 0;
-            for (int j = 0; j < text_len; j ++){
+            for (j = 0; j < text_len; j ++){
                 if ( (int)text_str[j]== i){
                     suffix_indexes[index++]=j;
                 }
@@ -172,7 +177,7 @@ int main(int argc, char **argv){
             qsort(suffix_indexes, index, sizeof(int), suffix_str_compare_func);
             #ifdef DEBUG
                 printf("%c:", (char)i);
-            for (int k = 0; k < index; k ++){
+            for (k = 0; k < index; k ++){
                 printf(" %d|", suffix_indexes[k]);
             }
             printf("\n");
@@ -180,7 +185,7 @@ int main(int argc, char **argv){
 
             char bwt_char;
             int bwt_pos;
-            for (int k = 0; k < index; k ++){
+            for (k = 0; k < index; k ++){
                 // #ifdef DEBUG
                 //     printf("-%d", suffix_indexes[k]-1);
                 // #endif
@@ -192,7 +197,7 @@ int main(int argc, char **argv){
                     bwt_char = text_str[bwt_pos];
                 }
                 if (bwt_char == *delimiter){
-                    for (int t=0; t<del_index; t++){
+                    for (t=0; t<del_index; t++){
                         if (del_pos[t]==bwt_pos){
                             #ifdef DEBUG
                                 printf("Del (%d) is at row %d for pos %d in original text\n",t, cur_row, del_pos[t]);
@@ -214,7 +219,7 @@ int main(int argc, char **argv){
     }
     #ifdef DEBUG
     printf("\nDeliminator positions in BWT:\n");
-    for (int i=0; i<freq[(int)(*delimiter)]; i++){
+    for (i=0; i<freq[(int)(*delimiter)]; i++){
         printf("%d ",aux_row_pos[i]);
     }
     printf("\n");
