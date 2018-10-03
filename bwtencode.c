@@ -224,8 +224,9 @@ int main(int argc, char **argv){
     #endif
 
     FILE* aux_file = fopen("./bwt_pos.aux","wb");
-    fwrite(&aux_row_pos, sizeof(int), freq[(int)(*delimiter)], aux_file);
+    fwrite(aux_row_pos, sizeof(int), freq[(int)(*delimiter)], aux_file);
     fclose(aux_file);
+
     /* terminate and free memory */
     fclose (output_file);
     free(text_str);
