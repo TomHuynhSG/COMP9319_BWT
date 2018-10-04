@@ -18,12 +18,12 @@ Example command:
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
+#include <stdbool.h>
 /* global variables */
 
 
 /* constants */
-#define DEBUG
+// #define DEBUG
 #define ALPHABETS_NUM 128
 #define ERROR -1
 #define SUCCESS 0
@@ -92,7 +92,9 @@ void create_occ_table(char* bwt_str, int bwt_len ,int** occ, int freq[]){
 
 int which_record(int pos, char* delimiter, char* bwt, int* c, int** occ, int* deli_pos, int num_deli){
     int cur_c = bwt[pos];
-    printf("Initial: %d | %c\n", pos, cur_c);
+    #ifdef DEBUG
+        printf("Initial: %d | %c\n", pos, cur_c);
+    #endif
     while( cur_c != (int)*delimiter){
         if ((pos)>=1){
             pos = c[cur_c] + occ[pos-1][cur_c];
@@ -100,7 +102,9 @@ int which_record(int pos, char* delimiter, char* bwt, int* c, int** occ, int* de
             pos = c[cur_c];
         }
         cur_c = bwt[pos];
-        printf("Next: %d | %c\n", pos, cur_c);
+        #ifdef DEBUG
+            printf("Next: %d | %c\n", pos, cur_c);
+        #endif
     }
     int i;
     for (i=0; i<num_deli; i++){
@@ -114,6 +118,31 @@ int which_record(int pos, char* delimiter, char* bwt, int* c, int** occ, int* de
         }
     }
     return ERROR;
+}
+
+void print_record(int record_no, char* delimiter, char* bwt, int* c, int** occ, int* deli_pos, int num_deli){
+    int pos = c[(int)*delimiter] + record_no;
+    int cur_c = bwt[pos];
+    
+    // printf("Initial: %d | %c\n", pos, cur_c);
+    char temp[1000];
+    int tem_len=0;
+    while( cur_c != (int)*delimiter){
+        
+        temp[tem_len++]=cur_c;
+        if ((pos)>=1){
+            pos = c[cur_c] + occ[pos-1][cur_c];
+        } else {
+            pos = c[cur_c];
+        }
+        cur_c = bwt[pos];
+        
+    }
+    int i;
+    for (i=tem_len-1;i>=0;i--){
+        printf("%c", temp[i]);
+    }
+    printf("\n");
 }
 
 // function occFast(ch, bwt, loc)
@@ -167,7 +196,6 @@ int main(int argc, char **argv){
     int* deli_pos = read_aux_file("./bwt_pos.aux", num_deli);
     
     int i;
-    int j;
     #ifdef DEBUG
         printf("Num of delimiters: %d\n", num_deli);
         printf("Delimiter pos in BWT:\n");
@@ -183,9 +211,10 @@ int main(int argc, char **argv){
         printf("Frequecy:\n");
         for (i = 0; i < ALPHABETS_NUM; i++){
             if (freq[i] > 0){
-                printf("%c: %d\n", (char)i, freq[i]);
+                printf("%c: %d |", (char)i, freq[i]);
             }
         }
+        printf("\n");
     #endif
 
     int* c = (int *)calloc(ALPHABETS_NUM, sizeof(int));
@@ -194,15 +223,17 @@ int main(int argc, char **argv){
         printf("C table:\n");
         for (i = 0; i < ALPHABETS_NUM; i++){
             if (freq[i] > 0){
-                printf("%c: %d\n", (char)i, c[i]);
+                printf("%c: %d |", (char)i, c[i]);
             }
         }
+        printf("\n");
     #endif
 
     int **occ = (int **)malloc(bwt_len * sizeof(int*));
     create_occ_table(bwt_str, bwt_len , occ, freq);
 
     #ifdef DEBUG
+        int j;
         printf("Occ/Rank table:\n");
         printf("   ");
         for (i = 0; i < ALPHABETS_NUM; i++){
@@ -223,15 +254,19 @@ int main(int argc, char **argv){
     #endif
 
     
-        
-    #ifdef DEBUG
-        printf("-m searching for '%s' (length: %ld)\n",search_str,strlen(search_str));
-    #endif
+    
     if (strcmp(flag, "-i")==0){
-        printf("Searching for -i\n");
-
-
-        
+        #ifdef DEBUG
+            printf("-i for '%s':\n",search_str);
+        #endif
+        int record_start;
+        int record_end;
+        sscanf(search_str,"%d%*[^0123456789]%d",
+                &record_start,
+                &record_end);
+        for (i = record_start; i <= record_end; i++){
+            print_record(i-1, delimiter, bwt_str, c, occ, deli_pos, num_deli);
+        }
     } else {
         int pat_index = strlen(search_str) - 1;
         int cur_c = search_str[pat_index];
@@ -251,41 +286,69 @@ int main(int argc, char **argv){
             #ifdef DEBUG
                 printf("s': %d | e': %d \n", low, high);
             #endif
-        }
+        }   
         if (strcmp(flag, "-m")==0){
+            #ifdef DEBUG
+                printf("-m searching for '%s' (length: %ld)\n",search_str,strlen(search_str));
+            #endif
             int results = high-low+1;
             #ifdef DEBUG
-                printf("-m for '%s': %d Results\n",search_str,results);
+                printf("-m for '%s':\n",search_str);
             #endif
+            printf("%d\n",results);
         }
 
         if ((strcmp(flag, "-a")==0)||(strcmp(flag, "-n")==0)){
+
             int record_num;
+
+            bool matched_records[num_deli];
+            memset(matched_records, 0, sizeof(matched_records));
+
             for (i=low-1;i<=high-1;i++){
                 record_num = which_record(i, delimiter, bwt_str, c, occ, deli_pos, num_deli);
-                deli_pos[record_num-1]=-1;
+                matched_records[record_num-1]= true;
             }
-            printf("Matched record:\n");
-            if (strcmp(flag, "-a")==0){
+            #ifdef DEBUG
+                printf("Matched Results:\n");
                 for (i = 0; i < num_deli; i++){
-                    if (deli_pos[i]==-1){
+                    if (matched_records[i]== true){
+                        printf("%d | ", i+1);
+                    }
+                }            
+                printf("\n\n");
+            #endif
+
+            if (strcmp(flag, "-a")==0){
+                #ifdef DEBUG
+                    printf("-a for '%s':\n",search_str);
+                #endif
+
+                for (i = 0; i < num_deli; i++){
+                    if (matched_records[i]== true){
                         printf("%d\n", i+1);
                     }
                 }
             }
 
             if (strcmp(flag, "-n")==0){
-                int matches = 0;
+                #ifdef DEBUG
+                    printf("-n for '%s'\n",search_str);
+                #endif
+
+                int num_matches = 0;
                 for (i = 0; i < num_deli; i++){
-                    if (deli_pos[i]==-1){
-                        matches ++;
+                    if (matched_records[i]== true){
+                        num_matches ++;
                     }
                 }
-                printf("%d\n", matches);
+                printf("%d\n", num_matches);
             }
-            
         }
+
     }
+
+
 
 
 }

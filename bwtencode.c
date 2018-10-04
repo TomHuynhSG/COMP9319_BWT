@@ -230,6 +230,7 @@ int main(int argc, char **argv){
     /* terminate and free memory */
     fclose (output_file);
     free(text_str);
+    return SUCCESS;
 }
 
 
