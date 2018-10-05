@@ -22,6 +22,7 @@ char* delimiter;
 /* constants */
 /*#define DEBUG*/
 #define ALPHABETS_NUM 256
+#define BUFFER_SIZE 5000000
 #define ERROR -1
 #define SUCCESS 0
 
@@ -147,7 +148,7 @@ int main(int argc, char **argv){
     
 
     #ifdef DEBUG 
-        printf("%s\n", text_str); 
+        // printf("%s\n", text_str); 
         printf("Length: %d\n\n", text_len); 
     #endif
 
@@ -197,6 +198,9 @@ int main(int argc, char **argv){
     int j;
     int k;
     int t;
+    int l;
+    char buffer[BUFFER_SIZE];
+    int buffer_len=0;
     for (i = 0; i < ALPHABETS_NUM; i++){    
         if (freq[i] > 0){
         
@@ -212,8 +216,10 @@ int main(int argc, char **argv){
                 printf("%c:", (char)i);
             for (k = 0; k < index; k ++){
                 printf(" %d|", suffix_indexes[k]);
+                fflush( stdout );
             }
-            printf("\n");
+            printf("\nEND");
+            fflush( stdout );
             #endif
 
             char bwt_char;
@@ -236,6 +242,7 @@ int main(int argc, char **argv){
                                 printf("Del (%d) is at row %d for pos %d in original text\n",t, cur_row, del_pos[t]);
                             #endif
                             aux_row_pos[t]=cur_row;
+                            fflush( stdout );
                         }
                     }
                 }
@@ -243,9 +250,14 @@ int main(int argc, char **argv){
                 // #ifdef DEBUG
                 //     printf(" -> %c\n", bwt_char);
                 // #endif
-                fputc(bwt_char, output_file);
+                //fputc(bwt_char, output_file);
+                buffer[buffer_len++]=bwt_char;
             }
-
+            
+            for (l=0; l<buffer_len; l++){
+                fputc(buffer[l], output_file);
+            }
+            buffer_len=0;
             free (suffix_indexes);
         }
         

@@ -111,40 +111,48 @@ void create_c_table(int c[], int freq[]){
 }
 
 
-void create_occ_table(FILE* bwt_file, int bwt_len ,int** occ, int freq[]){
+int create_occ_table(FILE* bwt_file, int bwt_len ,int** occ, int freq[],int checkpoint_skip){
     int i;
     int c;
-    occ[0] = (int *)calloc(ALPHABETS_NUM, sizeof(int));
-    c = bwt_fseek(0, bwt_file); 
-    occ[0][c]=1;
-
-    for (i = 1; i < bwt_len; i++){
-        occ[i] = (int *)malloc(ALPHABETS_NUM * sizeof(int));
-        memcpy(occ[i], occ[i-1], ALPHABETS_NUM * sizeof(int));
-        c = bwt_fseek(i, bwt_file);
-        occ[i][c]+=1;
+    
+    int* temp = (int *)calloc(ALPHABETS_NUM, sizeof(int));
+    int occ_rows=0;
+    for (i = 0; i < bwt_len; i++){
+        c = bwt_fseek(i, bwt_file); 
+        temp[c]+=1;
+        
+        if (i%checkpoint_skip==0){
+            occ[occ_rows] = (int *)malloc(ALPHABETS_NUM * sizeof(int));
+            memcpy(occ[occ_rows], temp, ALPHABETS_NUM * sizeof(int));
+            occ_rows++;
+        }
     }
+    return occ_rows;
 }
 
+int occ_seek(int pos, int c, int** occ, FILE* bwt_file,int checkpoint_skip){
+    int bucket = pos/checkpoint_skip;
+    int count =  occ[bucket][c];
+    int lower_bound_pos = bucket*checkpoint_skip;
+    int i;
+    int cur_c;
+    for (i = lower_bound_pos+1; i <=pos; i++){
+        cur_c = bwt_fseek(i, bwt_file);
+        if (cur_c == c){
+            count++;
+        }
+    }
+    return count;
+}
 
-// function occFast(ch, bwt, loc)
-//  { if( loc < 0 ) return 0;
-//    var bucket = Math.floor(loc/freqBucketSize);
-//    var lo = bucket * freqBucketSize;
-//    var count = freqCache[bucket][ch.charCodeAt(0)];
-//    for(var j = lo; j < loc; j++ )
-//       if( bwt.charAt(j) == ch ) count ++ ;
-//    return count;
-//  }//occFast(ch,bwt,loc)
-
-int which_record(int pos, char* delimiter, FILE* bwt_file, int* c, int** occ, FILE* aux_file, int num_deli){
+int which_record(int pos, char* delimiter, FILE* bwt_file, int* c, int** occ, FILE* aux_file, int num_deli, int checkpoint_skip){
     int cur_c = bwt_fseek(pos, bwt_file);
     #ifdef DEBUG
         printf("Initial: %d | %c\n", pos, cur_c);
     #endif
     while( cur_c != (int)*delimiter){
         if ((pos)>=1){
-            pos = c[cur_c] + occ[pos-1][cur_c];
+            pos = c[cur_c] + occ_seek(pos - 1, cur_c, occ, bwt_file, checkpoint_skip);
         } else {
             pos = c[cur_c];
         }
@@ -167,19 +175,22 @@ int which_record(int pos, char* delimiter, FILE* bwt_file, int* c, int** occ, FI
     return ERROR;
 }
 
-void print_record(int record_no, char* delimiter, FILE* bwt_file, int* c, int** occ){
+void print_record(int record_no, char* delimiter, FILE* bwt_file, int* c, int** occ, int checkpoint_skip){
     int pos = c[(int)*delimiter] + record_no;
-    int cur_c = bwt_fseek(pos,bwt_file);
-    
+    int cur_c = bwt_fseek(pos, bwt_file);
+
     char temp[5000];
     int tem_len=0;
     while( cur_c != (int)*delimiter){
         temp[tem_len++]=cur_c;
         if ((pos)>=1){
-            pos = c[cur_c] + occ[pos-1][cur_c];
+            pos = c[cur_c] + occ_seek(pos - 1, cur_c, occ, bwt_file, checkpoint_skip);
         } else {
             pos = c[cur_c];
         }
+        #ifdef DEBUG
+            printf("Position %d | %c because %d (C) + ?\n",pos, cur_c, c[cur_c]);
+        #endif
         cur_c = bwt_fseek(pos,bwt_file);
     }
     int i;
@@ -285,11 +296,19 @@ int main(int argc, char **argv){
     #endif
 
     int **occ = (int **)malloc(bwt_len * sizeof(int*));
-    create_occ_table(bwt_file, bwt_len , occ, freq);
+    int checkpoint_skip;
+    if (bwt_len<10000){
+        checkpoint_skip = 10;
+    } else{
+        checkpoint_skip = 10;
+    }
+    
+    int occ_rows = create_occ_table(bwt_file, bwt_len , occ, freq, checkpoint_skip);
 
     #ifdef DEBUG
         int j;
         printf("Occ/Rank table:\n");
+        printf("Number of rows:%d\n",occ_rows);
         printf("   ");
         for (i = 0; i < ALPHABETS_NUM; i++){
             if (freq[i] > 0){
@@ -297,8 +316,8 @@ int main(int argc, char **argv){
             }
         }
         printf("\n");
-        for (i = 0; i < bwt_len; i++){
-            printf("%c| ", bwt_fseek(i,bwt_file));
+        for (i = 0; i < occ_rows; i++){
+            printf("%c| ", bwt_fseek(i*checkpoint_skip,bwt_file));
             for (j = 0; j < ALPHABETS_NUM; j++){
                 if (freq[j] > 0){
                     printf(" %d", occ[i][j]);
@@ -307,6 +326,7 @@ int main(int argc, char **argv){
             printf("\n");
         }
     #endif
+
 
     free(freq);
     
@@ -323,7 +343,7 @@ int main(int argc, char **argv){
         #endif
     
         for (i = record_start; i <= record_end; i++){
-            print_record(i-1, delimiter, bwt_file, c, occ);
+            print_record(i-1, delimiter, bwt_file, c, occ, checkpoint_skip);
         }
     } else {
         int pat_index = strlen(search_str) - 1;
@@ -336,11 +356,11 @@ int main(int argc, char **argv){
                 printf("%c | s: %d | e: %d | ",cur_c, low, high);
             #endif
             if ((low)>=2){
-                low = c[cur_c] + occ[low-2][cur_c] + 1;
+                low = c[cur_c] + occ_seek(low - 2, cur_c, occ, bwt_file, checkpoint_skip) + 1; 
             } else {
                 low = c[cur_c] + 1;
             }
-            high = c[cur_c] + occ[high-1][cur_c];
+            high = c[cur_c] + occ_seek(high - 1, cur_c, occ, bwt_file, checkpoint_skip);
             #ifdef DEBUG
                 printf("s': %d | e': %d \n", low, high);
             #endif
@@ -364,7 +384,7 @@ int main(int argc, char **argv){
             memset(matched_records, 0, sizeof(matched_records));
 
             for (i=low-1;i<=high-1;i++){
-                record_num = which_record(i, delimiter, bwt_file, c, occ, aux_file, num_deli);
+                record_num = which_record(i, delimiter, bwt_file, c, occ, aux_file, num_deli, checkpoint_skip);
                 matched_records[record_num-1]= true;
             }
             #ifdef DEBUG
