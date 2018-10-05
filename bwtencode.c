@@ -15,7 +15,6 @@ Example command:
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
 /* global variables */
 char* text_str;
 char* delimiter;
@@ -38,6 +37,23 @@ char* read_file(char *input_path){
     fclose(f);
     string[fsize] = 0;
     return string;
+}
+
+char * replace_aux_extension(char* mystr) {
+    char *retstr;
+    char *lastdot;
+    if (mystr == NULL)
+         return NULL;
+    if ((retstr = malloc (strlen (mystr) + 1)) == NULL)
+        return NULL;
+    strcpy (retstr, mystr);
+    lastdot = strrchr (retstr, '.');
+    if (lastdot != NULL){
+        lastdot[1] = 'a';
+        lastdot[2] = 'u';
+        lastdot[3] = 'x';
+    }    
+    return retstr;
 }
 
 short get_string_frequency(char* string, int string_len, int freq[]){
@@ -86,13 +102,32 @@ int main(int argc, char **argv){
     }
 
     delimiter = (char*) argv[1];
+
+    if (strcmp(delimiter,"\\n")==0){
+        #ifdef DEBUG
+            printf("Detect delimiter is new line char!\n");
+        #endif
+        delimiter[0]='\n';
+        delimiter[1]='\0';
+    }
+
+    if (strcmp(delimiter,"\\t")==0){
+        #ifdef DEBUG
+            printf("Detect delimiter is tab char!\n");
+        #endif
+        delimiter[0]='\t';
+        delimiter[1]='\0';
+    }
+
     char* index_path = (char*) argv[2];
     char* input_path = (char*) argv[3];
     char* output_path = (char*) argv[4];
+    char* aux_path = replace_aux_extension(output_path);
 
     #ifdef DEBUG
-        printf("Delimiter: %c\n", *delimiter);
+        printf("Delimiter: %s (string)| %c (char)| %d (code)\n", delimiter, *delimiter, *delimiter);
         printf("Index Path: %s\n", index_path);
+        printf("Aux Path: %s\n", aux_path);
         printf("Input Path: %s\n", input_path);
         printf("Output Path: %s\n\n", output_path);
     #endif
@@ -223,7 +258,7 @@ int main(int argc, char **argv){
     printf("\n");
     #endif
 
-    FILE* aux_file = fopen("./bwt_pos.aux","wb");
+    FILE* aux_file = fopen(aux_path,"wb");
     fwrite(aux_row_pos, sizeof(int), freq[(int)(*delimiter)], aux_file);
     fclose(aux_file);
 

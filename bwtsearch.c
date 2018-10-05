@@ -23,7 +23,7 @@ Example command:
 
 
 /* constants */
-// #define DEBUG
+/*#define DEBUG*/
 #define ALPHABETS_NUM 128
 #define ERROR -1
 #define SUCCESS 0
@@ -43,6 +43,42 @@ char* read_string_file(char *input_path){
     return string;
 }
 
+char bwt_fseek(int pos, FILE* f){
+    fseek(f, pos, SEEK_SET);
+    return (fgetc(f));
+}
+
+int aux_fseek(int pos, FILE* f){
+    fseek(f, pos*sizeof(int), SEEK_SET);
+    int aux_pos;
+    fread(&aux_pos, sizeof(int), 1, f);
+    return aux_pos;
+}
+
+long bwt_flen(FILE* f){
+    fseek(f, 0, SEEK_END);
+    long fsize = ftell(f);
+    fseek(f, 0, SEEK_SET);  //same as rewind(f);
+    return (fsize);
+}
+
+char * replace_aux_extension(char* mystr) {
+    char *retstr;
+    char *lastdot;
+    if (mystr == NULL)
+         return NULL;
+    if ((retstr = malloc (strlen (mystr) + 1)) == NULL)
+        return NULL;
+    strcpy (retstr, mystr);
+    lastdot = strrchr (retstr, '.');
+    if (lastdot != NULL){
+        lastdot[1] = 'a';
+        lastdot[2] = 'u';
+        lastdot[3] = 'x';
+    }    
+    return retstr;
+}
+
 int* read_aux_file(char *input_path, int num_deli){
     FILE *f = fopen(input_path, "rb");
     int* aux_arr= (int *)malloc(num_deli * sizeof(int));
@@ -52,12 +88,12 @@ int* read_aux_file(char *input_path, int num_deli){
 }
 
 
-short get_string_frequency(char* string, int string_len, int* freq){
+short get_string_frequency(FILE* bwt_file, int string_len, int* freq){
     int i;
     int unique_chars = 0;
     int c;
     for (i = 0; i < string_len; i++){
-        c = string[i];
+        c = bwt_fseek(i,bwt_file);
         if (freq[c] == 0){
             ++unique_chars;
         }
@@ -75,75 +111,21 @@ void create_c_table(int c[], int freq[]){
 }
 
 
-void create_occ_table(char* bwt_str, int bwt_len ,int** occ, int freq[]){
+void create_occ_table(FILE* bwt_file, int bwt_len ,int** occ, int freq[]){
     int i;
     int c;
     occ[0] = (int *)calloc(ALPHABETS_NUM, sizeof(int));
-    c = bwt_str[0];
+    c = bwt_fseek(0, bwt_file); 
     occ[0][c]=1;
 
     for (i = 1; i < bwt_len; i++){
         occ[i] = (int *)malloc(ALPHABETS_NUM * sizeof(int));
         memcpy(occ[i], occ[i-1], ALPHABETS_NUM * sizeof(int));
-        c = bwt_str[i];
+        c = bwt_fseek(i, bwt_file);
         occ[i][c]+=1;
     }
 }
 
-int which_record(int pos, char* delimiter, char* bwt, int* c, int** occ, int* deli_pos, int num_deli){
-    int cur_c = bwt[pos];
-    #ifdef DEBUG
-        printf("Initial: %d | %c\n", pos, cur_c);
-    #endif
-    while( cur_c != (int)*delimiter){
-        if ((pos)>=1){
-            pos = c[cur_c] + occ[pos-1][cur_c];
-        } else {
-            pos = c[cur_c];
-        }
-        cur_c = bwt[pos];
-        #ifdef DEBUG
-            printf("Next: %d | %c\n", pos, cur_c);
-        #endif
-    }
-    int i;
-    for (i=0; i<num_deli; i++){
-        if (pos== deli_pos[i]){
-            if ((i+2)>num_deli){
-                return 1;
-            } else {
-                return i+2;
-            }
-
-        }
-    }
-    return ERROR;
-}
-
-void print_record(int record_no, char* delimiter, char* bwt, int* c, int** occ, int* deli_pos, int num_deli){
-    int pos = c[(int)*delimiter] + record_no;
-    int cur_c = bwt[pos];
-    
-    // printf("Initial: %d | %c\n", pos, cur_c);
-    char temp[1000];
-    int tem_len=0;
-    while( cur_c != (int)*delimiter){
-        
-        temp[tem_len++]=cur_c;
-        if ((pos)>=1){
-            pos = c[cur_c] + occ[pos-1][cur_c];
-        } else {
-            pos = c[cur_c];
-        }
-        cur_c = bwt[pos];
-        
-    }
-    int i;
-    for (i=tem_len-1;i>=0;i--){
-        printf("%c", temp[i]);
-    }
-    printf("\n");
-}
 
 // function occFast(ch, bwt, loc)
 //  { if( loc < 0 ) return 0;
@@ -155,6 +137,59 @@ void print_record(int record_no, char* delimiter, char* bwt, int* c, int** occ, 
 //    return count;
 //  }//occFast(ch,bwt,loc)
 
+int which_record(int pos, char* delimiter, FILE* bwt_file, int* c, int** occ, FILE* aux_file, int num_deli){
+    int cur_c = bwt_fseek(pos, bwt_file);
+    #ifdef DEBUG
+        printf("Initial: %d | %c\n", pos, cur_c);
+    #endif
+    while( cur_c != (int)*delimiter){
+        if ((pos)>=1){
+            pos = c[cur_c] + occ[pos-1][cur_c];
+        } else {
+            pos = c[cur_c];
+        }
+        cur_c = bwt_fseek(pos, bwt_file);
+        #ifdef DEBUG
+            printf("Next: %d | %c\n", pos, cur_c);
+        #endif
+    }
+    int i;
+    for (i=0; i<num_deli; i++){
+        if (pos == aux_fseek(i,aux_file)){
+            if ((i+2)>num_deli){
+                return 1;
+            } else {
+                return i+2;
+            }
+
+        }
+    }
+    return ERROR;
+}
+
+void print_record(int record_no, char* delimiter, FILE* bwt_file, int* c, int** occ){
+    int pos = c[(int)*delimiter] + record_no;
+    int cur_c = bwt_fseek(pos,bwt_file);
+    
+    char temp[5000];
+    int tem_len=0;
+    while( cur_c != (int)*delimiter){
+        temp[tem_len++]=cur_c;
+        if ((pos)>=1){
+            pos = c[cur_c] + occ[pos-1][cur_c];
+        } else {
+            pos = c[cur_c];
+        }
+        cur_c = bwt_fseek(pos,bwt_file);
+    }
+    int i;
+    for (i=tem_len-1;i>=0;i--){
+        printf("%c", temp[i]);
+    }
+    printf("\n");
+}
+
+
 
 /* Main Program */
 int main(int argc, char **argv){
@@ -164,14 +199,34 @@ int main(int argc, char **argv){
     }
 
     char* delimiter = (char*) argv[1];
+
+    if (strcmp(delimiter,"\\n")==0){
+        #ifdef DEBUG
+            printf("Detect delimiter is new line char!\n");
+        #endif
+        delimiter[0]='\n';
+        delimiter[1]='\0';
+    }
+
+    if (strcmp(delimiter,"\\t")==0){
+        #ifdef DEBUG
+            printf("Detect delimiter is tab char!\n");
+        #endif
+        delimiter[0]='\t';
+        delimiter[1]='\0';
+    }
+
     char* bwt_path = (char*) argv[2];
     char* index_path = (char*) argv[3];
     char* flag = (char*) argv[4];
     char* search_str = (char*) argv[5];
+    char* aux_path = replace_aux_extension(bwt_path);
+
     #ifdef DEBUG
-        printf("Delimiter: %c\n", *delimiter);
+        printf("Delimiter: %s (string)| %c (char)| %d (code)\n", delimiter, *delimiter, *delimiter);
         printf("Input Path: %s\n", bwt_path);
         printf("Index Path: %s\n", index_path);
+        printf("Aux Path: %s\n", aux_path);
         printf("Flag: %s\n", flag);
         printf("Search Str: %s\n\n", search_str);
     #endif
@@ -179,28 +234,28 @@ int main(int argc, char **argv){
     #ifdef DEBUG
         printf("Reading BWT file!\n");
     #endif
+    
+    FILE *bwt_file = fopen(bwt_path, "rb");
+    long bwt_len = bwt_flen(bwt_file);
 
-    char* bwt_str = read_string_file(bwt_path);
-    int bwt_len = strlen(bwt_str);
-
-    #ifdef DEBUG 
-        printf("%s\n", bwt_str); 
-        printf("Length: %d\n\n", bwt_len); 
+    #ifdef DEBUG
+        printf("BWT Length: %ld\n\n", bwt_len); 
     #endif
 
     // int freq[ALPHABETS_NUM]={0};
     int* freq = (int *)calloc(ALPHABETS_NUM, sizeof(int));
-    int unique_chars = get_string_frequency(bwt_str, bwt_len, freq);
+    int unique_chars = get_string_frequency(bwt_file, bwt_len, freq);
 
     int num_deli = freq[(int)(*delimiter)];
-    int* deli_pos = read_aux_file("./bwt_pos.aux", num_deli);
+
+    FILE *aux_file = fopen(aux_path, "rb");
     
     int i;
     #ifdef DEBUG
         printf("Num of delimiters: %d\n", num_deli);
         printf("Delimiter pos in BWT:\n");
         for (i = 0; i < num_deli; i++){
-                printf("%d ", deli_pos[i]);
+                printf("%d ", aux_fseek(i,aux_file));
         }
         printf("\n\n");
     #endif
@@ -230,7 +285,7 @@ int main(int argc, char **argv){
     #endif
 
     int **occ = (int **)malloc(bwt_len * sizeof(int*));
-    create_occ_table(bwt_str, bwt_len , occ, freq);
+    create_occ_table(bwt_file, bwt_len , occ, freq);
 
     #ifdef DEBUG
         int j;
@@ -243,7 +298,7 @@ int main(int argc, char **argv){
         }
         printf("\n");
         for (i = 0; i < bwt_len; i++){
-            printf("%c| ", bwt_str[i]);
+            printf("%c| ", bwt_fseek(i,bwt_file));
             for (j = 0; j < ALPHABETS_NUM; j++){
                 if (freq[j] > 0){
                     printf(" %d", occ[i][j]);
@@ -253,19 +308,22 @@ int main(int argc, char **argv){
         }
     #endif
 
-    
+    free(freq);
     
     if (strcmp(flag, "-i")==0){
+        
         #ifdef DEBUG
-            printf("-i for '%s':\n",search_str);
+            printf("-i for %s:\n",search_str);
         #endif
-        int record_start;
-        int record_end;
-        sscanf(search_str,"%d%*[^0123456789]%d",
-                &record_start,
-                &record_end);
+        int record_start= 0;
+        int record_end = 0;
+        sscanf(search_str,"%d %d",&record_start,&record_end);
+        #ifdef DEBUG
+            printf("Searching from %d to %d:\n",record_start, record_end);
+        #endif
+    
         for (i = record_start; i <= record_end; i++){
-            print_record(i-1, delimiter, bwt_str, c, occ, deli_pos, num_deli);
+            print_record(i-1, delimiter, bwt_file, c, occ);
         }
     } else {
         int pat_index = strlen(search_str) - 1;
@@ -293,7 +351,7 @@ int main(int argc, char **argv){
             #endif
             int results = high-low+1;
             #ifdef DEBUG
-                printf("-m for '%s':\n",search_str);
+                printf("-m for %s:\n",search_str);
             #endif
             printf("%d\n",results);
         }
@@ -306,7 +364,7 @@ int main(int argc, char **argv){
             memset(matched_records, 0, sizeof(matched_records));
 
             for (i=low-1;i<=high-1;i++){
-                record_num = which_record(i, delimiter, bwt_str, c, occ, deli_pos, num_deli);
+                record_num = which_record(i, delimiter, bwt_file, c, occ, aux_file, num_deli);
                 matched_records[record_num-1]= true;
             }
             #ifdef DEBUG
@@ -321,7 +379,7 @@ int main(int argc, char **argv){
 
             if (strcmp(flag, "-a")==0){
                 #ifdef DEBUG
-                    printf("-a for '%s':\n",search_str);
+                    printf("-a for %s:\n",search_str);
                 #endif
 
                 for (i = 0; i < num_deli; i++){
@@ -347,12 +405,6 @@ int main(int argc, char **argv){
         }
 
     }
-
-
-
-
+    fclose(bwt_file);
+    fclose(aux_file);
 }
-
-
-
-
