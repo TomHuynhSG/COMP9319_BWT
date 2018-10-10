@@ -4,6 +4,8 @@ Assignment 2: BWT and Search
 
 Name: Nguyen Minh Thong Huynh
 ID: z5170141
+
+Part 2: Searching BWT string
 */
 
 /* 
@@ -19,7 +21,6 @@ Example command:
 #include <stdlib.h>
 #include <string.h>
 #include <stdbool.h>
-/* global variables */
 
 
 /* constants */
@@ -30,6 +31,8 @@ Example command:
 
 
 /* functions */
+
+/* Do not use this function anymore since it is read the whole file into memory which is replace by bwt_fseek function and aux_fseek */
 char* read_string_file(char *input_path){
     FILE *f = fopen(input_path, "rb");
     fseek(f, 0, SEEK_END);
@@ -43,11 +46,14 @@ char* read_string_file(char *input_path){
     return string;
 }
 
+/* Optimised read bwt char based on position on input file */
 char bwt_fseek(int pos, FILE* f){
     fseek(f, pos, SEEK_SET);
     return (fgetc(f));
 }
 
+
+/* Optimised read delimiters pos based on position on aux file */
 int aux_fseek(int pos, FILE* f){
     fseek(f, pos*sizeof(int), SEEK_SET);
     int aux_pos;
@@ -55,6 +61,7 @@ int aux_fseek(int pos, FILE* f){
     return aux_pos;
 }
 
+/* check bwt len */
 long bwt_flen(FILE* f){
     fseek(f, 0, SEEK_END);
     long fsize = ftell(f);
@@ -62,23 +69,27 @@ long bwt_flen(FILE* f){
     return (fsize);
 }
 
-char * replace_aux_extension(char* mystr) {
-    char *retstr;
+/* replace aux extension */
+char * replace_aux_extension(char* file_name) {
+    char *renamed_name;
     char *lastdot;
-    if (mystr == NULL)
-         return NULL;
-    if ((retstr = malloc (strlen (mystr) + 1)) == NULL)
+    if (file_name == NULL){
         return NULL;
-    strcpy (retstr, mystr);
-    lastdot = strrchr (retstr, '.');
+    }
+    if ((renamed_name = malloc (strlen (file_name) + 1)) == NULL){
+        return NULL;
+    }   
+    strcpy (renamed_name, file_name);
+    lastdot = strrchr (renamed_name, '.');
     if (lastdot != NULL){
         lastdot[1] = 'a';
         lastdot[2] = 'u';
         lastdot[3] = 'x';
     }    
-    return retstr;
+    return renamed_name;
 }
 
+/* Do not use this function anymore since it is read the whole file into memory which is replace by bwt_fseek function and aux_fseek */
 int* read_aux_file(char *input_path, int num_deli){
     FILE *f = fopen(input_path, "rb");
     int* aux_arr= (int *)malloc(num_deli * sizeof(int));
@@ -87,7 +98,7 @@ int* read_aux_file(char *input_path, int num_deli){
     return aux_arr;
 }
 
-
+/* get string frequency of bwt */
 short get_string_frequency(FILE* bwt_file, int string_len, int* freq){
     int i;
     int unique_chars = 0;
@@ -102,6 +113,7 @@ short get_string_frequency(FILE* bwt_file, int string_len, int* freq){
     return unique_chars;
 }
 
+/* create c table */
 void create_c_table(int c[], int freq[]){
     c[0] = 0;
     int i;
@@ -110,7 +122,7 @@ void create_c_table(int c[], int freq[]){
     }
 }
 
-
+/* create occ table */
 int create_occ_table(FILE* bwt_file, int bwt_len ,int** occ, int freq[],int checkpoint_skip){
     int i;
     int c;
@@ -121,6 +133,7 @@ int create_occ_table(FILE* bwt_file, int bwt_len ,int** occ, int freq[],int chec
         c = bwt_fseek(i, bwt_file); 
         temp[c]+=1;
         
+        /* create new entry in occ table every checkpoint_skip numbers of bwt chars */
         if (i%checkpoint_skip==0){
             occ[occ_rows] = (int *)malloc(ALPHABETS_NUM * sizeof(int));
             memcpy(occ[occ_rows], temp, ALPHABETS_NUM * sizeof(int));
@@ -130,6 +143,7 @@ int create_occ_table(FILE* bwt_file, int bwt_len ,int** occ, int freq[],int chec
     return occ_rows;
 }
 
+/* read occ entry based on skipped checkpoints occ table */
 int occ_seek(int pos, int c, int** occ, FILE* bwt_file,int checkpoint_skip){
     int bucket = pos/checkpoint_skip;
     int count =  occ[bucket][c];
@@ -145,6 +159,7 @@ int occ_seek(int pos, int c, int** occ, FILE* bwt_file,int checkpoint_skip){
     return count;
 }
 
+/* which record of pos position of bwt string belongs to */
 int which_record(int pos, char* delimiter, FILE* bwt_file, int* c, int** occ, FILE* aux_file, int num_deli, int checkpoint_skip){
     int cur_c = bwt_fseek(pos, bwt_file);
     #ifdef DEBUG
@@ -175,6 +190,8 @@ int which_record(int pos, char* delimiter, FILE* bwt_file, int* c, int** occ, FI
     return ERROR;
 }
 
+
+/* print record of original record based on record number for -i */
 void print_record(int record_no, char* delimiter, FILE* bwt_file, int* c, int** occ, int checkpoint_skip){
     int pos = c[(int)*delimiter] + record_no;
     int cur_c = bwt_fseek(pos, bwt_file);
@@ -295,16 +312,19 @@ int main(int argc, char **argv){
         printf("\n");
     #endif
 
-    int **occ = (int **)malloc(bwt_len * sizeof(int*));
+
     int checkpoint_skip;
+
+    /* make sure file > 10MB will more less checkpoints to save enough memory */
     if (bwt_len<10000){
-        checkpoint_skip = 10;
+        checkpoint_skip = 1000;
     } else{
-        checkpoint_skip = 10;
+        checkpoint_skip = 2000;
     }
+
+    int **occ = (int **)malloc( ((bwt_len/checkpoint_skip)+1) * sizeof(int*));
     
     int occ_rows = create_occ_table(bwt_file, bwt_len , occ, freq, checkpoint_skip);
-
     #ifdef DEBUG
         int j;
         printf("Occ/Rank table:\n");
@@ -326,7 +346,6 @@ int main(int argc, char **argv){
             printf("\n");
         }
     #endif
-
 
     free(freq);
     
@@ -427,4 +446,5 @@ int main(int argc, char **argv){
     }
     fclose(bwt_file);
     fclose(aux_file);
+    return SUCCESS;
 }

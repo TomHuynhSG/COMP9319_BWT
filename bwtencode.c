@@ -4,6 +4,8 @@ Assignment 2: BWT and Search
 
 Name: Nguyen Minh Thong Huynh
 ID: z5170141
+
+Part 1: Encoding BWT 
 */
 
 /* 
@@ -15,6 +17,7 @@ Example command:
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
 /* global variables */
 char* text_str;
 char* delimiter;
@@ -27,6 +30,8 @@ char* delimiter;
 #define SUCCESS 0
 
 /* functions */
+
+/* read the whole file into memory */
 char* read_file(char *input_path){
     FILE *f = fopen(input_path, "rb");
     fseek(f, 0, SEEK_END);
@@ -40,6 +45,7 @@ char* read_file(char *input_path){
     return string;
 }
 
+/* replace aux extension */
 char * replace_aux_extension(char* mystr) {
     char *retstr;
     char *lastdot;
@@ -57,6 +63,7 @@ char * replace_aux_extension(char* mystr) {
     return retstr;
 }
 
+/* get string frequency of bwt */
 short get_string_frequency(char* string, int string_len, int freq[]){
     int unique_chars = 0;
     int c;
@@ -71,6 +78,7 @@ short get_string_frequency(char* string, int string_len, int freq[]){
     return unique_chars;
 }
 
+/* custom string comparision function for qsort which has special case for delimiters */
 int strcmp_custom(const char* s1, const char* s2){
     while(*s1 && (*s1==*s2)){
         if ((*s1==*delimiter)&&(*s2==*delimiter)){
@@ -87,6 +95,7 @@ int strcmp_custom(const char* s1, const char* s2){
     return *(const unsigned char*)s1-*(const unsigned char*)s2;
 }
 
+/* custom string comparision function for qsort which has special case for delimiters */
 int suffix_str_compare_func(const void *indexp_1, const void *indexp_2){
     int index_1 = *(int*) indexp_1;
     int index_2 = *(int*) indexp_2;
@@ -218,8 +227,6 @@ int main(int argc, char **argv){
                 printf(" %d|", suffix_indexes[k]);
                 fflush( stdout );
             }
-            printf("\nEND");
-            fflush( stdout );
             #endif
 
             char bwt_char;
